@@ -59,12 +59,10 @@ Vagrant.configure("2") do |config|
   # View the documentation for the provider you are using for more
   # information on available options.
 
+  config.vm.provision "shell", path: "make-etcd.sh", binary: "true"
   config.vm.provision "shell", inline: <<-SHELL
 
-    # get and build etcd
-    echo 'build etcd'
-    ( cd /home/vagrant; sudo -i -u vagrant /vagrant/make-etcd.sh  )
-
+  
     # generate ssh keys for this host and copy to a common location so that we can distribute to all the vms
     echo 'generate ssd keys'
     (cd /home/vagrant; sudo -u  vagrant ssh-keygen -q -t rsa -b 4096 -N "" -f /home/vagrant/.ssh/id_rsa )
