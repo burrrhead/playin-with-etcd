@@ -1,0 +1,16 @@
+#!/usr/bin/perl 
+use strict;
+my $ttycmd = "/usr/bin/tty";
+my $whocmd = "/usr/bin/who";
+
+my $tty;
+chop( $tty = `$ttycmd` ) || die "tty: $!" ;
+$tty =~ s,/dev/,,;
+
+open( WHO, "$whocmd |" ) || die "who: $!";
+while( <WHO> )
+{
+	my( $name, $dev, $date ) = split( " " );
+	do { print; exit } if ( $dev == $tty  && s/.*\(([^)]*)\)/\1/);
+}
+
