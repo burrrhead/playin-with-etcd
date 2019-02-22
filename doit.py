@@ -63,7 +63,7 @@ Vagrant.configure("2") do |config|
 
     # get and build etcd
     echo 'build etcd'
-    ( cd /home/vagrant; sudo -i -u vagrant git clone https://github.com/etcd-io/etcd; cd etcd; sudo  -u vagrant make build; sudo  -u vagrant make build-functional )
+    ( cd /home/vagrant; sudo -i -u /vagrant/make-etcd.sh  )
 
     # generate ssh keys for this host and copy to a common location so that we can distribute to all the vms
     echo 'generate ssd keys'
