@@ -1,4 +1,5 @@
 import subprocess
+from string import Template
 boxes = (( "client","192.168.50.2", "box1"),
          ( "client","192.168.50.3", "box2" ),
          ( "client","192.168.50.4", "box3"))
@@ -122,25 +123,49 @@ def runCommand ( cmd ) :
         exit( 1 )
 
 #now we finally get to create the vagrant file. 
+def makeVagrantFile ():
+  f = open( "vagrantfile", "w")
+  f.write( commonBoxFileContents )
+  f.write( makeEtcHosts( boxes ) )
 
-f = open( "vagrantfile", "w")
-f.write( commonBoxFileContents )
-f.write( makeEtcHosts( boxes ) )
-
-# now iterate over the boxes and then write box specific command to the vagrant file. 
-from string import Template
-for box in boxes:
-    if box[0] == "client":
+  # now iterate over the boxes and then write box specific command to the vagrant file. 
+  for box in boxes:
+      if box[0] == "client":
         s = Template( clientBoxContents )
         f.write( s.substitute( ip= box[1], hostname=box[2] ) )
-    if box[0] == "db" :
+      if box[0] == "db" :
         s = Template( dbBoxContents )
         f.write( s.substitute( ip=box[1], hostname=box[2] ) )
 
-f.write( "end\n")
-f.close()
+  f.write( "end\n")
+  f.close()
+
+def makeEtcdCommandFiles () :
+  for box in boxes:
+    fn = "etcd-" + box[2] + ".sh"
+    t = """/home/vagrant/etcd/bin/etcd --name infra1 \\
+  --initial-advertise-peer-urls http://$ip:2380 \\
+  --debug \\
+  --listen-peer-urls http://$ip:2380 \\
+  --listen-client-urls http://$ip:2379 \\
+  --advertise-client-urls http://$ip:2379 \\
+  --initial-cluster-token etcd-cluster-1 \\
+  --initial-cluster """
+
+    f = open(fn, "wb")
+    f.write( bytes( Template(t).substitute(ip=box[1]), 'utf-8'))
+    sep = ""
+    for b in boxes:
+      f.write( bytes( sep + "http://" + b[1] + ":2380", 'utf-8') )
+      sep = ","
+    f.write( bytes("\\\n  --initial-cluster-state new\n", 'utf-8') )
+    f.close()
 
 # now execute the commands.
+
+makeVagrantFile()
+makeEtcdCommandFiles()
+
 runCommand("del keys")
 runCommand("vagrant up" )
 
