@@ -1,8 +1,11 @@
 import subprocess
 from string import Template
+
+# a three node etcd cluster consisting of hosts box1, box2, box3 and another host, box4 for playing with
 boxes = (( "client","192.168.50.2", "box1"),
          ( "client","192.168.50.3", "box2" ),
-         ( "client","192.168.50.4", "box3"))
+         ( "client","192.168.50.4", "box3"),
+         ( "dumb",  "192.168.50.5", "box4"))
 
 
 
@@ -133,6 +136,9 @@ def makeVagrantFile ():
       if box[0] == "client":
         s = Template( clientBoxContents )
         f.write( s.substitute( ip= box[1], hostname=box[2] ) )
+      if box[0] == "dumb" :
+        s = Template( clientBoxContents )
+        f.write ( s.substitute( ip=box[1], hostname=box[2]))
       if box[0] == "db" :
         s = Template( dbBoxContents )
         f.write( s.substitute( ip=box[1], hostname=box[2] ) )
@@ -142,24 +148,26 @@ def makeVagrantFile ():
 
 def makeEtcdCommandFiles () :
   for box in boxes:
-    fn = "etcd-" + box[2] + ".sh"
-    t = """/home/vagrant/etcd/bin/etcd --name infra1 \\
-  --initial-advertise-peer-urls http://$ip:2380 \\
-  --debug \\
-  --listen-peer-urls http://$ip:2380 \\
-  --listen-client-urls http://$ip:2379 \\
-  --advertise-client-urls http://$ip:2379 \\
-  --initial-cluster-token etcd-cluster-1 \\
-  --initial-cluster """
+    if box[0] == "client" :
+      fn = "etcd-" + box[2] + ".sh"
+      t = """/home/vagrant/etcd/bin/etcd --name $nm \\
+    --initial-advertise-peer-urls http://$ip:2380 \\
+    --debug \\
+    --listen-peer-urls http://$ip:2380 \\
+    --listen-client-urls http://$ip:2379,http://127.0.0.1:2379 \\
+    --advertise-client-urls http://$ip:2379 \\
+    --initial-cluster-token etcd-cluster-1 \\
+    --initial-cluster  """
 
-    f = open(fn, "wb")
-    f.write( bytes( Template(t).substitute(ip=box[1]), 'utf-8'))
-    sep = ""
-    for b in boxes:
-      f.write( bytes( sep + "http://" + b[1] + ":2380", 'utf-8') )
-      sep = ","
-    f.write( bytes("\\\n  --initial-cluster-state new\n", 'utf-8') )
-    f.close()
+      f = open(fn, "wb")
+      f.write( bytes( Template(t).substitute(ip=box[1], nm=box[2]), 'utf-8'))
+      sep = ""
+      for b in boxes:
+        if b[0] == "client" :
+          f.write( bytes( Template( sep + "$nm=http://" + b[1] + ":2380").substitute(nm=b[2]), 'utf-8' ) )
+          sep = ","
+      f.write( bytes(" \\\n  --initial-cluster-state new\n", 'utf-8') )
+      f.close()
 
 # now execute the commands.
 
